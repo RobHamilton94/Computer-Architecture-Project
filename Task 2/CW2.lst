@@ -1,0 +1,183 @@
+
+CdM-8 Assembler v2.1 <<<CW2.asm>>> 13/12/2016 17:57:34
+
+                  1  macro define/2
+                  2          asect $2
+                  3          $1:
+                  4  mend
+                  5  
+                  6  define stack, 0xf0      # Gives the address 0xf0 the symbolic name stack
+                  7  
+                  8  define HOReg, 0xf8      # higher order address bits
+                  9  define LOReg, 0xf9      # lower order address bits
+                 10  
+                 11  define IOData, 0xfa     # data to be written/read
+                 12  
+                 13  define TTYKey, 0xfb     # TTY output or keyboard input
+                 14  
+                 15          asect 0x80
+80: 00           16  stringEnd: dc 0
+                 17  
+                 18  
+                 19  
+                 20          asect 0x00
+                 21  start:
+00: d0 f0        22          ldi r0,stack
+02: c8           23          stsp r0 # Sets the initial value of SP to 0xf0
+                 24  
+03: d6 3a        25          jsr getKey
+                 26          #jsr ramTest    # run test subroutine
+                 27  
+05: d4           28  halt
+                 29  
+                 30  ramTest:
+                 31          # store value 22 in ram address 0x0010
+06: d0 00        32          ldi r0, 0x00
+08: d1 10        33          ldi r1, 0x10
+0a: d2 16        34          ldi r2, 22
+0c: d6 22        35          jsr ramStore
+                 36  
+                 37          # read value from address 0x0100
+0e: d0 01        38          ldi r0, 0x01
+10: d1 00        39          ldi r1, 0x00
+12: d6 2e        40          jsr ramLoad
+                 41  
+                 42          # store value 49 in ram address 0x0110
+14: d0 01        43          ldi r0, 0x01
+16: d1 10        44          ldi r1, 0x10
+18: d2 31        45          ldi r2, 49
+1a: d6 22        46          jsr ramStore
+                 47  
+                 48          # read value from address 0x0101
+1c: d0 01        49          ldi r0, 0x01
+1e: d1 01        50          ldi r1, 0x01
+20: d6 2e        51          jsr ramLoad
+                 52  
+                 53  # Saves r2 to address in (r1<<8) + r0
+                 54  ramStore:
+22: c3           55          save r3 # keep Subroutine clean
+                 56  
+23: d3 f8        57          ldi r3, HOReg
+25: ac           58          st r3, r0               # load high order address bits into register
+                 59  
+26: d3 f9        60          ldi r3, LOReg   # load low order address bits into register
+28: ad           61          st r3, r1
+                 62  
+29: d3 fa        63          ldi r3, IOData  # store data from IOData into RAM
+2b: ae           64          st r3, r2
+                 65  
+2c: c7           66          restore
+2d: d7           67          rts
+                 68  
+                 69  
+                 70  ramLoad:        # result in r2
+                 71  
+2e: c3           72          save r3 # keep Subroutine clean
+                 73  
+2f: d3 f8        74          ldi r3, HOReg   # load high order address bits into register
+31: ac           75          st r3, r0
+                 76  
+32: d3 f9        77          ldi r3, LOReg   # load low order address bits into register
+34: ad           78          st r3, r1
+                 79  
+35: d3 fa        80          ldi r3, IOData
+37: be           81          ld r3, r2               # read data from RAM into r2
+                 82  
+38: c7           83          restore
+39: d7           84          rts
+                 85  
+                 86  
+                 87  getKey:
+                 88  
+                 89          loop:
+3a: d6 5c        90                  jsr readToTTY
+3c: d6 40        91                  jsr writeFromKeyboard
+                 92  
+3e: ee 3a        93                  br loop
+                 94  
+                 95  writeFromKeyboard:
+                 96          writeLoop:
+40: d0 fb        97                  ldi r0, TTYKey  # load IO address
+42: b1           98                  ld r0, r1       # check for keyboard input
+                 99                  if
+43: 25          100                          shl r1  # check msb for input flag
+44: e2 4c       101                  is cc                   # if no input then loop
+46: d0 80       102                          ldi r0, stringEnd
+48: d1 00       103                          ldi r1, 0
+4a: a1          104                          st r0, r1       # reset stringEnd
+4b: d7          105                          rts
+                106                  fi
+4c: 05          107                  tst r1
+4d: 91          108                  shr r1          # shift ascii back without msb
+                109  
+4e: 06          110                  move r1, r2             # place ascii data in r2 for ramstore
+                111  
+4f: d0 80       112                  ldi r0, stringEnd       # get string end address
+51: b1          113                  ld r0, r1
+52: 30          114                  clr r0
+                115  
+53: d6 22       116                  jsr ramStore    # store character at string end
+                117  
+55: 8d          118                  inc r1
+56: d0 80       119                  ldi r0, stringEnd       # get string end address
+58: a1          120                  st r0, r1
+59: ee 40       121                  br writeLoop
+5b: d7          122          rts
+                123  
+                124  readToTTY:
+5c: d0 fb       125                  ldi r0, TTYKey  # load IO address
+5e: b1          126                  ld r0, r1       # check for keyboard input
+                127  
+5f: d2 ff       128                  ldi r2, 0b11111111      # print from RAM mask
+                129  
+61: 49          130                  and r2, r1      # compare key with mask
+                131                  if
+62: 79          132                          cmp r2, r1      # if key is 0b11111111
+63: e1 7d       133                  is eq
+                134                          readLoop:
+65: d0 80       135                                  ldi r0, stringEnd       # get string end address
+67: b1          136                                  ld r0, r1
+68: 30          137                                  clr r0
+                138  
+69: d6 2e       139                                  jsr ramLoad     # load character from ram
+                140  
+                141                                  if
+6b: 0a          142                                          tst r2 # the data retrieved from ramLoad
+6c: e0 78       143                                  is nz            # is not zero (end of phrase)
+6e: d0 fb       144                                          ldi r0, TTYKey
+70: a2          145                                          st r0, r2
+71: d0 80       146                                          ldi r0, stringEnd       # get string end address
+73: b1          147                                          ld r0, r1
+74: 8d          148                                          inc r1
+75: a1          149                                          st r0, r1       # update stringEnd
+76: ee 65       150                                          br readLoop
+                151                                  fi
+78: d0 80       152                                  ldi r0, stringEnd
+7a: d1 00       153                                  ldi r1, 0
+7c: a1          154                                  st r0, r1       # reset stringEnd
+                155                  fi
+7d: d7          156                  rts
+                157  
+                158  end
+                159  
+                160  
+                161  
+                162  
+                163  
+
+======================================================================
+
+SECTIONS:
+Name	Size	Relocation offsets
+
+
+ENTRIES:
+Section		Name/Offset
+
+$abs		<NONE>
+
+EXTERNALS:
+Name		Used in
+
+
+======================================================================
