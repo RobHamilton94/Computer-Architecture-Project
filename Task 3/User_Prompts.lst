@@ -1,0 +1,73 @@
+
+CdM-8 Assembler v2.1 <<<User_Prompts.asm>>> 03/01/2017 11:41:08
+
+                  1  asect 0x00
+00: 50 72 65 73   2  dc "Press 's' to save a string or 'r' to load one", 0x0a
+04: 73 20 27 73     
+08: 27 20 74 6f     
+0c: 20 73 61 76     
+10: 65 20 61 20     
+14: 73 74 72 69     
+18: 6e 67 20 6f     
+1c: 72 20 27 72     
+20: 27 20 74 6f     
+24: 20 6c 6f 61     
+28: 64 20 6f 6e     
+2c: 65 0a           
+                  3  
+                  4  asect 0x30
+30: 45 6e 74 65   5  dc "Enter your string and press return to finish", 0x0a
+34: 72 20 79 6f     
+38: 75 72 20 73     
+3c: 74 72 69 6e     
+40: 67 20 61 6e     
+44: 64 20 70 72     
+48: 65 73 73 20     
+4c: 72 65 74 75     
+50: 72 6e 20 74     
+54: 6f 20 66 69     
+58: 6e 69 73 68     
+5c: 0a              
+                  6  
+                  7  asect 0x60
+60: 45 6e 74 65   8  dc "Enter a 1 character filename", 0x0a
+64: 72 20 61 20     
+68: 31 20 63 68     
+6c: 61 72 61 63     
+70: 74 65 72 20     
+74: 66 69 6c 65     
+78: 6e 61 6d 65     
+7c: 0a              
+                  9  
+                 10  asect 0x90
+90: 45 6e 74 65  11  dc "Enter filename of the string (return to exit)", 0x0a
+94: 72 20 66 69     
+98: 6c 65 6e 61     
+9c: 6d 65 20 6f     
+a0: 66 20 74 68     
+a4: 65 20 73 74     
+a8: 72 69 6e 67     
+ac: 20 28 72 65     
+b0: 74 75 72 6e     
+b4: 20 74 6f 20     
+b8: 65 78 69 74     
+bc: 29 0a           
+                 12  
+                 13  end
+
+======================================================================
+
+SECTIONS:
+Name	Size	Relocation offsets
+
+
+ENTRIES:
+Section		Name/Offset
+
+$abs		<NONE>
+
+EXTERNALS:
+Name		Used in
+
+
+======================================================================

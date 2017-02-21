@@ -1,0 +1,347 @@
+
+CdM-8 Assembler v2.1 <<<CW3.asm>>> 03/01/2017 11:21:47
+
+                  1  macro define/2
+                  2          asect $2
+                  3          $1:
+                  4  mend
+                  5  
+                  6  define stack, 0xf0      # Gives the address 0xf0 the symbolic name stack
+                  7  
+                  8  define HOReg, 0xf8      # higher order address bits
+                  9  define LOReg, 0xf9      # lower order address bits
+                 10  
+                 11  define IOData, 0xfa     # data to be written/read
+                 12  
+                 13  define TTYKey, 0xfb     # TTY output or keyboard input
+                 14  
+                 15  # file structure
+                 16  # pos 1 = filename
+                 17  # pos 2 = RAM address
+                 18  # pos 3 = file length
+                 19  
+                 20          asect 0x00
+                 21  
+                 22  start:
+00: d0 f0        23          ldi r0,stack
+02: c8           24          stsp r0 # Sets the initial value of SP to 0xf0
+                 25  
+03: d6 1e        26          jsr getKey
+                 27  
+05: d4           28  halt
+                 29  
+                 30  # Saves r2 to address in (r1<<8) + r0
+                 31  ramStore:
+06: c3           32          save r3 # keep Subroutine clean
+                 33  
+07: d3 f8        34          ldi r3, HOReg
+09: ac           35          st r3, r0               # load high order address bits into register
+                 36  
+0a: d3 f9        37          ldi r3, LOReg   # load low order address bits into register
+0c: ad           38          st r3, r1
+                 39  
+0d: d3 fa        40          ldi r3, IOData  # store data from IOData into RAM
+0f: ae           41          st r3, r2
+                 42  
+10: c7           43          restore
+11: d7           44          rts
+                 45  
+                 46  
+                 47  ramLoad:        # result in r2
+                 48  
+12: c3           49          save r3 # keep Subroutine clean
+                 50  
+13: d3 f8        51          ldi r3, HOReg   # load high order address bits into register
+15: ac           52          st r3, r0
+                 53  
+16: d3 f9        54          ldi r3, LOReg   # load low order address bits into register
+18: ad           55          st r3, r1
+                 56  
+19: d3 fa        57          ldi r3, IOData
+1b: be           58          ld r3, r2               # read data from RAM into r2
+                 59  
+1c: c7           60          restore
+1d: d7           61          rts
+                 62  
+                 63  
+                 64  getKey:
+                 65  
+                 66          keyLoop:
+1e: d0 fb        67                  ldi r0, TTYKey  # r0 = IO address
+20: b1           68                  ld r0, r1       # r1 = keyboard input
+                 69  
+21: d3 ff        70                  ldi r3, 0b11111111      # print from RAM mask
+23: 06           71                  move r1, r2                     # r2 = keyboard input
+                 72                  if
+24: 7e           73                          cmp r3, r2      # if key is 0b11111111
+25: e1 2b        74                  is eq
+27: d6 b9        75                          jsr readToTTY   # read from RAM
+29: ee 35        76                  else
+                 77                          if
+2b: 25           78                                  shl r1  # check msb for input flag
+2c: e3 33        79                          is cs                   # if msb set, key has been pressed
+2e: 91           80                                  shr r1
+2f: d6 3d        81                                  jsr setFileData
+31: ee 35        82                          else
+33: ee 1e        83                                  br keyLoop
+                 84                          fi
+                 85                  fi
+                 86  
+35: ee 1e        87                  br keyLoop
+                 88  
+                 89  
+                 90  clearBuffer:
+37: d0 fb        91                  ldi r0, TTYKey  # load IO address
+39: d1 ff        92                  ldi r1, 0xff
+3b: a1           93                  st r0, r1
+3c: d7           94                  rts
+                 95  
+                 96  
+                 97  
+                 98  setFileData:    # r1 = ascii character for filename
+                 99  
+3d: d6 6d       100                  jsr setFileLocation     # retrieve next available file location (D-mem)
+                101                                                  # r0 = file location
+                102  
+3f: d3 ff       103                  ldi r3, 0xff
+                104                  if
+41: 7c          105                          cmp r3, r0      # if file locations not full
+42: e0 4a       106                  is nz
+44: d6 8a       107                          jsr getRAMAddress       # r2 = retrieve next available file location (RAM)
+46: d6 4d       108                          jsr writeFromKeyboard
+48: ee 4c       109                  else
+4a: d6 37       110                          jsr clearBuffer
+                111                  fi
+4c: d7          112                  rts
+                113  
+                114  
+                115  
+                116  
+                117  writeFromKeyboard:      # r0 = file location
+                118                                  # r1 = filename
+                119                                  # r2 = ram address
+                120  
+4d: c1          121          push r1 # save filename
+4e: c0          122          push r0 # save file location
+4f: c2          123          push r2 # save ram address
+                124  
+50: 3f          125          clr r3  # string length counter
+                126          writeLoop:
+                127  
+                128  
+51: d0 fb       129                  ldi r0, TTYKey  # load IO address
+53: b2          130                  ld r0, r2       # check for keyboard input
+                131                  if
+54: 2a          132                          shl r2  # check msb for input flag
+55: e3 63       133                  is cs                   # if no input then loop
+                134  
+57: 92          135                          shr r2          # shift ascii back without msb
+                136  
+                137  
+58: c5          138                          pop r1  # r1 = ram address
+59: c1          139                          push r1
+5a: 1d          140                          add r3, r1      # r1 = ram address + offset
+5b: 30          141                          clr r0
+                142  
+5c: d6 06       143                          jsr ramStore    # store character at ram address
+5e: 8f          144                          inc r3
+5f: ee 51       145                          br writeLoop
+                146  
+61: ee 6c       147                  else
+                148  
+                149  
+63: c5          150                          pop r1  # r1 = ram address
+64: c4          151                          pop r0  # r0 = file location
+65: c6          152                          pop r2  # r2 = file name
+                153                                          # r3 = string length
+                154  
+66: a2          155                          st r0, r2       # store filename in D-MEM
+67: 8c          156                          inc r0
+68: a1          157                          st r0, r1       # store ram address in D-MEM
+69: 8c          158                          inc r0
+6a: a3          159                          st r0, r3       # store string length in D-MEM
+                160  
+6b: d7          161                          rts
+                162                  fi
+                163  
+                164  
+6c: d7          165          rts
+                166  
+                167  setFileLocation:        # returns d-mem filedata location to store in r0
+                168  
+6d: c1          169          push r1
+6e: c2          170          push r2
+                171  
+6f: d0 00       172          ldi r0, 0               # load first D-Mem address of file data
+                173  
+                174          while
+71: d2 e0       175                  ldi r2, 0b11100000      # r2 = max d-mem address (0xE0)
+73: 42          176                  and r0, r2
+74: e1 85       177          stays eq
+76: b3          178                  ld r0, r3       # load ram address of current file name
+                179                  if
+77: 0f          180                          tst r3 # if no file name (empty file)
+78: e1 80       181                  is eq
+7a: c6          182                          pop r2
+7b: c5          183                          pop r1
+7c: 3f          184                          clr r3
+7d: d7          185                          rts
+7e: ee 83       186                  else
+80: 8c          187                          inc r0  # move to next file position in d-mem
+81: 8c          188                          inc r0
+82: 8c          189                          inc r0
+                190                  fi
+83: ee 71       191          wend
+85: c6          192          pop r2
+86: c5          193          pop r1
+87: d0 ff       194          ldi r0, 0xff    # return all file locations full
+89: d7          195          rts
+                196  
+                197  getRAMAddress:  # returns next free ram address in r2
+8a: c0          198          push r0 # save d-mem file location
+8b: d0 00       199          ldi r0, 0       # r0 = first d-mem file location
+                200  
+                201          while
+8d: d2 e0       202                  ldi r2, 0b11100000      # r2 = max d-mem address (0xE0)
+8f: 42          203                  and r0, r2
+90: e1 b8       204          stays eq
+92: b2          205                  ld r0, r2               # load file name
+                206                  if
+93: 0a          207                          tst r2  # if file filled (not empty)
+94: e1 a8       208                  is eq
+                209                                  if
+96: 00          210                                          tst r0
+97: ed 9d       211                                  is gt
+99: 88          212                                          dec r0  # move back to last
+9a: 88          213                                          dec r0  # filled file ram address
+9b: ee 9e       214                                  else
+9d: 8c          215                                          inc r0  # move to first file ram address
+                216                                  fi
+                217  
+9e: c1          218                                  push r1 # r1 = new file name
+9f: b1          219                                  ld r0, r1       # load ram address
+a0: 8c          220                                  inc r0  # get last file string length
+a1: b2          221                                  ld r0, r2       # load string length
+                222  
+a2: 16          223                                  add r1, r2      # next free ram address = last address + offset
+a3: c5          224                                  pop r1  # r1 = file name
+a4: c4          225                                  pop r0  # r0 = d-mem file location
+a5: d7          226                                  rts
+a6: ee b6       227                  else
+                228  
+                229                          if
+a8: 00          230                                  tst r0  # no files saved
+a9: e1 b3       231                          is eq, and
+ab: 0a          232                                  tst r2  # no file name
+ac: e1 b3       233                          is eq
+ae: c4          234                                  pop r0  # r0 = d-mem file location
+af: 3a          235                                  clr r2  # 0 = return all file locations empty
+b0: d7          236                                  rts
+b1: ee b6       237                          else
+b3: 8c          238                                  inc r0  # move to next file location
+b4: 8c          239                                  inc r0
+b5: 8c          240                                  inc r0
+                241                          fi
+                242                  fi
+b6: ee 8d       243          wend
+                244  
+                245  
+b8: d7          246          rts
+                247  
+                248  readToTTY:
+                249                  readLoop:
+b9: d0 fb       250                          ldi r0, TTYKey  # r0 = IO address
+bb: b1          251                          ld r0, r1       # r1 = keyboard input
+                252  
+                253                          if
+bc: 25          254                                  shl r1  # check msb for input flag
+bd: e2 c3       255                          is cc                   # if msb set, key has been pressed
+bf: ee b9       256                                  br readLoop
+c1: ee e2       257                          else
+c3: 91          258                                  shr r1
+c4: 04          259                                  move r1, r0     # r0 = filename
+                260  
+c5: d6 e3       261                                  jsr getFileLocation     # get address and length
+                262                                                                  # r1 = address
+                263                                                                  # r2 = length
+                264  
+c7: d3 ff       265                                  ldi r3, 0xff
+                266                                  if
+c9: 7d          267                                          cmp r3, r1      # if file locations not full
+ca: e0 e0       268                                  is nz
+cc: d0 fb       269                                          ldi r0, TTYKey
+ce: 3f          270                                          clr r3  # string count
+                271                                          while
+cf: 7b          272                                                  cmp r2, r3
+d0: ed de       273                                          stays gt
+d2: c2          274                                                  push r2
+d3: 30          275                                                  clr r0
+d4: d6 12       276                                                          jsr ramLoad     # get string char from ram
+d6: d0 fb       277                                                          ldi r0, TTYKey
+d8: a2          278                                                          st r0, r2       # print to TTY
+d9: c6          279                                                  pop r2
+da: 8d          280                                                  inc r1
+db: 8f          281                                                  inc r3
+dc: ee cf       282                                          wend
+de: ee e2       283                                  else
+e0: d6 37       284                                  jsr clearBuffer
+                285                                  fi
+                286                          fi
+                287  
+e2: d7          288                  rts
+                289  
+                290  
+                291  getFileLocation:        # input r0 = filename
+                292                          # output r1 = ram address
+                293                          # output r2 = string length
+                294  
+e3: d1 00       295          ldi r1, 0               # r1 = current file
+                296          while
+e5: d2 e0       297                  ldi r2, 0b11100000      # r2 = max d-mem address (0xE0)
+e7: 46          298                  and r1, r2
+e8: e1 fc       299          stays eq
+ea: b7          300                  ld r1, r3       # r3 = filename
+                301  
+                302                  if
+eb: 73          303                          cmp r0, r3      # if file found
+ec: e1 f7       304                  is eq
+ee: 8d          305                          inc r1
+ef: 06          306                          move r1, r2
+f0: 8e          307                          inc r2  # r2 = address of string length
+f1: b5          308                          ld r1, r1       # r1 = ram address
+f2: ba          309                          ld r2, r2       # r2 = string length
+f3: 3f          310                          clr r3  # keep subroutine clean
+f4: d7          311                          rts     # return ram address and string length
+f5: ee fa       312                  else
+f7: 8d          313                          inc r1  # move to next
+f8: 8d          314                          inc r1  # d-mem filename
+f9: 8d          315                          inc r1
+                316                  fi
+fa: ee e5       317          wend
+                318  
+fc: d1 ff       319          ldi r1, 0xff    # return file not found
+fe: d7          320          rts
+                321  
+                322  end
+                323  
+                324  
+                325  
+                326  
+                327  
+
+======================================================================
+
+SECTIONS:
+Name	Size	Relocation offsets
+
+
+ENTRIES:
+Section		Name/Offset
+
+$abs		<NONE>
+
+EXTERNALS:
+Name		Used in
+
+
+======================================================================
