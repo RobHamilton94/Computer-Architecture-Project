@@ -1,5 +1,5 @@
 
-CdM-8 Assembler v2.1 <<<CW4.asm>>> 31/03/2017 13:23:50
+CdM-8 Assembler v2.1 <<<CW4.asm>>> 01/04/2017 16:46:20
 
                   1  macro define/2
                   2          asect $2
@@ -272,7 +272,7 @@ ca: e0 e0       268                                  is nz
 cc: d0 fb       269                                          ldi r0, TTYKey
 ce: 3f          270                                          clr r3  # string count
                 271                                          while
-cf: 7b          272                                                  cmp r2, r3
+cf: 7b          272                                                  cmp r2, r3      # while not end of string
 d0: ed de       273                                          stays gt
 d2: c2          274                                                  push r2
 d3: 30          275                                                  clr r0
